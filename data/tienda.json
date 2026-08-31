@@ -1,0 +1,36 @@
+
+[
+    {
+        "id": "rol_vip_michi",
+        "nombre": "👑 Michi VIP",
+        "precio": 500,
+        "tipo": "rol",
+        "rol_id": "PON_AQUI_EL_ID_DEL_ROL"
+    },
+    {
+        "id": "rol_don_patron",
+        "nombre": "💼 El Patrón del Server",
+        "precio": 1500,
+        "tipo": "rol",
+        "rol_id": "PON_AQUI_EL_ID_DEL_ROL"
+    },
+    {
+        "id": "rol_leyenda_gatuna",
+        "nombre": "⚡ Leyenda Gatuna",
+        "precio": 3000,
+        "tipo": "rol",
+        "rol_id": "PON_AQUI_EL_ID_DEL_ROL"
+    },
+    {
+        "id": "collar_oro",
+        "nombre": "🏅 Collar Dorado para tu gato",
+        "precio": 300,
+        "tipo": "item_mascota"
+    },
+    {
+        "id": "juguete_estambre",
+        "nombre": "🧶 Juguete de estambre",
+        "precio": 150,
+        "tipo": "item_mascota"
+    }
+]
