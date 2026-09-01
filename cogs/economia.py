@@ -335,15 +335,16 @@ class Economia(commands.Cog):
         )
 
         if not top:
-            embed.description = "Todavía nadie tiene monedas. ¡Usá `!daily` para empezar!"
+            embed.description = "Todavía nadie tiene monedas. ¡Usá `!michidaily` para empezar!"
         else:
             medallas = ["🥇", "🥈", "🥉"]
             lineas = []
             for i, (id_usuario, info) in enumerate(top):
-                miembro = canal.guild.get_member(int(id_usuario))
-                nombre = miembro.display_name if miembro else f"Usuario {id_usuario}"
                 posicion = medallas[i] if i < 3 else f"`#{i + 1}`"
-                lineas.append(f"{posicion} **{nombre}** — {info['monedas']} 🪙")
+                # Usamos una mención real (<@ID>): Discord la muestra con el nombre
+                # actualizado y, al tocarla/pasar el mouse, aparece la tarjeta de
+                # perfil con sus roles, sin que tengamos que programar nada de eso.
+                lineas.append(f"{posicion} <@{id_usuario}> — {info['monedas']} 🪙")
             embed.description = "\n".join(lineas)
 
         embed.set_footer(text=f"Se actualiza cada {INTERVALO_LEADERBOARD_MINUTOS} minutos")
