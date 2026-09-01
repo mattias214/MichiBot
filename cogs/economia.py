@@ -27,6 +27,9 @@ EFECTOS_ITEMS = {
     "collar_oro": {"felicidad": 15, "hambre": 15},
 }
 
+APUESTA_MINIMA = 10
+APUESTA_MAXIMA = 500   # tope para que nadie se juegue todo de una
+
 
 # ---------- Funciones auxiliares para leer/escribir JSON ----------
 
@@ -309,6 +312,93 @@ class Economia(commands.Cog):
             ),
             color=discord.Color.pink()
         )
+        await ctx.send(embed=embed)
+
+    # ---------- TRANSFERIR MONEDAS A OTRO USUARIO ----------
+
+    @commands.command(name="michitransferir", aliases=["michidar"])
+    async def transferir(self, ctx, miembro: discord.Member = None, cantidad: int = None):
+        """Uso: !michitransferir @usuario <cantidad>"""
+        if miembro is None or cantidad is None:
+            await ctx.send("❓ Uso: `!michitransferir @usuario <cantidad>`")
+            return
+        if miembro.bot:
+            await ctx.send("😅 No le podés transferir monedas a un bot.")
+            return
+        if miembro == ctx.author:
+            await ctx.send("😅 No te podés transferir monedas a vos mismo.")
+            return
+        if cantidad <= 0:
+            await ctx.send("❌ La cantidad tiene que ser mayor a 0.")
+            return
+
+        datos = cargar_economia()
+        emisor = obtener_usuario(datos, str(ctx.author.id))
+        receptor = obtener_usuario(datos, str(miembro.id))
+
+        if emisor["monedas"] < cantidad:
+            await ctx.send(f"😿 No tenés suficientes monedas. Te faltan **{cantidad - emisor['monedas']}** 🪙.")
+            return
+
+        emisor["monedas"] -= cantidad
+        receptor["monedas"] += cantidad
+        guardar_economia(datos)
+
+        embed = discord.Embed(
+            description=f"💸 **{ctx.author.display_name}** le transfirió **{cantidad}** 🪙 a **{miembro.display_name}**.",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
+
+    # ---------- APOSTAR (cara o cruz, con monedas virtuales) ----------
+
+    @commands.command(name="michiapostar", aliases=["michiapuesta"])
+    async def apostar(self, ctx, cantidad: int = None, eleccion: str = None):
+        """Uso: !michiapostar <cantidad> [cara/cruz] — jugás cara o cruz contra el bot."""
+        if cantidad is None:
+            await ctx.send(
+                f"❓ Uso: `!michiapostar <cantidad> [cara/cruz]` "
+                f"— apostá entre **{APUESTA_MINIMA}** y **{APUESTA_MAXIMA}** 🪙."
+            )
+            return
+
+        if cantidad < APUESTA_MINIMA or cantidad > APUESTA_MAXIMA:
+            await ctx.send(f"⚠️ Solo podés apostar entre **{APUESTA_MINIMA}** y **{APUESTA_MAXIMA}** 🪙 por vez.")
+            return
+
+        datos = cargar_economia()
+        usuario = obtener_usuario(datos, str(ctx.author.id))
+
+        if usuario["monedas"] < cantidad:
+            await ctx.send(f"😿 No tenés suficientes monedas. Te faltan **{cantidad - usuario['monedas']}** 🪙.")
+            return
+
+        eleccion = (eleccion or "cara").lower()
+        if eleccion not in ("cara", "cruz"):
+            await ctx.send("❓ Elegí `cara` o `cruz`. Ejemplo: `!michiapostar 50 cara`")
+            return
+
+        resultado = random.choice(["cara", "cruz"])
+        gano = eleccion == resultado
+
+        if gano:
+            usuario["monedas"] += cantidad
+            descripcion = (
+                f"🪙 La moneda cayó en **{resultado}**.\n"
+                f"🎉 ¡Ganaste **{cantidad}** 🪙! Ahora tenés **{usuario['monedas']}** 🪙."
+            )
+            color = discord.Color.green()
+        else:
+            usuario["monedas"] -= cantidad
+            descripcion = (
+                f"🪙 La moneda cayó en **{resultado}**.\n"
+                f"😿 Perdiste **{cantidad}** 🪙. Te quedan **{usuario['monedas']}** 🪙."
+            )
+            color = discord.Color.red()
+
+        guardar_economia(datos)
+
+        embed = discord.Embed(description=descripcion, color=color)
         await ctx.send(embed=embed)
 
     # ---------- LEADERBOARD EN VIVO ----------
