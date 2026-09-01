@@ -18,7 +18,7 @@ RECOMPENSA_CHAT_MAX = 5
 MENSAJES_MINIMOS_PARA_GANAR = 2      # cada cuántos mensajes (mínimo) se gana moneda
 MENSAJES_MAXIMOS_PARA_GANAR = 3      # cada cuántos mensajes (máximo) se gana moneda
 RECOMPENSA_ALIMENTAR = 15            # monedas por usar !alimentar
-INTERVALO_LEADERBOARD_MINUTOS = 5    # cada cuánto se actualiza el Top 10
+INTERVALO_LEADERBOARD_SEGUNDOS = 15   # cada cuánto se actualiza el Top 10
 
 # Qué le hace cada ítem de mascota a tu gato cuando lo usás.
 # Podés agregar más ítems acá (tienen que coincidir con los "id" de tienda.json).
@@ -29,6 +29,11 @@ EFECTOS_ITEMS = {
 
 APUESTA_MINIMA = 10
 APUESTA_MAXIMA = 500   # tope para que nadie se juegue todo de una
+
+# Roles que pueden usar !michiotorgar (dar monedas libremente)
+ROLES_STAFF_IDS = [1503188014741065809, 1503939375141097502]
+# Canal donde funciona ese comando
+CANAL_STAFF_ECONOMIA_ID = 1503484765368746044
 
 
 # ---------- Funciones auxiliares para leer/escribir JSON ----------
@@ -83,8 +88,11 @@ class Economia(commands.Cog):
         self.tarea_leaderboard_iniciada = False
 
     async def cog_check(self, ctx):
-        """Se aplica a TODOS los comandos de este cog (!daily, !saldo, !tienda, !comprar).
-        Si hay un canal de economía configurado, solo se pueden usar ahí."""
+        """Se aplica a TODOS los comandos de este cog (!michidaily, !michisaldo, etc).
+        Si hay un canal de economía configurado, solo se pueden usar ahí.
+        Excepción: !michiotorgar valida su propio canal y rol más abajo."""
+        if ctx.command and ctx.command.name == "michiotorgar":
+            return True
         if not self.canal_economia_id:
             return True
         return ctx.channel.id == self.canal_economia_id
@@ -401,6 +409,46 @@ class Economia(commands.Cog):
         embed = discord.Embed(description=descripcion, color=color)
         await ctx.send(embed=embed)
 
+    # ---------- DAR MONEDAS LIBREMENTE (SOLO STAFF) ----------
+
+    @commands.command(name="michiotorgar", aliases=["michigive"])
+    async def otorgar(self, ctx, cantidad: int = None, miembro: discord.Member = None):
+        """Uso: !michiotorgar <cantidad> [@usuario] — Solo staff.
+        Si no ponés @usuario, te das las monedas a vos mismo."""
+
+        # Solo funciona en el canal designado para staff
+        if ctx.channel.id != CANAL_STAFF_ECONOMIA_ID:
+            canal = self.bot.get_channel(CANAL_STAFF_ECONOMIA_ID)
+            if canal:
+                await ctx.send(f"🚫 Este comando solo se usa en {canal.mention}", delete_after=8)
+            return
+
+        # Solo lo pueden usar los roles de staff configurados
+        ids_roles_usuario = [rol.id for rol in ctx.author.roles]
+        if not any(rid in ids_roles_usuario for rid in ROLES_STAFF_IDS):
+            await ctx.send("🚫 Este comando es solo para staff.", delete_after=8)
+            return
+
+        if cantidad is None:
+            await ctx.send("❓ Uso: `!michiotorgar <cantidad> [@usuario]` (si no ponés usuario, te lo das a vos mismo)")
+            return
+
+        objetivo = miembro or ctx.author
+
+        datos = cargar_economia()
+        usuario = obtener_usuario(datos, str(objetivo.id))
+        usuario["monedas"] = max(0, usuario["monedas"] + cantidad)
+        guardar_economia(datos)
+
+        embed = discord.Embed(
+            description=(
+                f"👑 **{ctx.author.display_name}** le otorgó **{cantidad}** 🪙 a **{objetivo.display_name}**.\n"
+                f"Nuevo saldo: **{usuario['monedas']}** 🪙"
+            ),
+            color=discord.Color.gold()
+        )
+        await ctx.send(embed=embed)
+
     # ---------- LEADERBOARD EN VIVO ----------
 
     @commands.Cog.listener()
@@ -409,7 +457,7 @@ class Economia(commands.Cog):
             self.actualizar_leaderboard.start()
             self.tarea_leaderboard_iniciada = True
 
-    @tasks.loop(minutes=INTERVALO_LEADERBOARD_MINUTOS)
+    @tasks.loop(seconds=INTERVALO_LEADERBOARD_SEGUNDOS)
     async def actualizar_leaderboard(self):
         canal = self.bot.get_channel(self.canal_economia_id)
         if canal is None:
@@ -437,7 +485,7 @@ class Economia(commands.Cog):
                 lineas.append(f"{posicion} <@{id_usuario}> — {info['monedas']} 🪙")
             embed.description = "\n".join(lineas)
 
-        embed.set_footer(text=f"Se actualiza cada {INTERVALO_LEADERBOARD_MINUTOS} minutos")
+        embed.set_footer(text=f"Se actualiza cada {INTERVALO_LEADERBOARD_SEGUNDOS} segundos")
         embed.timestamp = datetime.now()
 
         # Buscamos si ya existe un mensaje guardado para editar, sino creamos uno nuevo
