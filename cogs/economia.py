@@ -412,9 +412,11 @@ class Economia(commands.Cog):
     # ---------- DAR MONEDAS LIBREMENTE (SOLO STAFF) ----------
 
     @commands.command(name="michiotorgar", aliases=["michigive"])
-    async def otorgar(self, ctx, cantidad: int = None, miembro: discord.Member = None):
-        """Uso: !michiotorgar <cantidad> [@usuario] — Solo staff.
-        Si no ponés @usuario, te das las monedas a vos mismo."""
+    async def otorgar(self, ctx, cantidad: str = None, miembro: discord.Member = None):
+        """Uso:
+        !michiotorgar <cantidad> [@usuario] → SUMA (o resta, si es negativo) esa cantidad
+        !michiotorgar =<cantidad> [@usuario] → FIJA el saldo exacto en ese número
+        Solo staff. Si no ponés @usuario, te lo aplicás a vos mismo."""
 
         # Solo funciona en el canal designado para staff
         if ctx.channel.id != CANAL_STAFF_ECONOMIA_ID:
@@ -430,19 +432,38 @@ class Economia(commands.Cog):
             return
 
         if cantidad is None:
-            await ctx.send("❓ Uso: `!michiotorgar <cantidad> [@usuario]` (si no ponés usuario, te lo das a vos mismo)")
+            await ctx.send(
+                "❓ Uso: `!michiotorgar <cantidad> [@usuario]` (suma/resta)\n"
+                "o `!michiotorgar =<cantidad> [@usuario]` (fija el saldo exacto, ej: `=0` para vaciarlo)"
+            )
+            return
+
+        modo_fijar = cantidad.startswith("=")
+        texto_numero = cantidad[1:] if modo_fijar else cantidad
+
+        try:
+            valor = int(texto_numero)
+        except ValueError:
+            await ctx.send("❌ Eso no es un número válido. Ejemplo: `!michiotorgar 100` o `!michiotorgar =0`")
             return
 
         objetivo = miembro or ctx.author
 
         datos = cargar_economia()
         usuario = obtener_usuario(datos, str(objetivo.id))
-        usuario["monedas"] = max(0, usuario["monedas"] + cantidad)
+
+        if modo_fijar:
+            usuario["monedas"] = max(0, valor)
+            verbo = "le fijó el saldo en"
+        else:
+            usuario["monedas"] = max(0, usuario["monedas"] + valor)
+            verbo = "le otorgó"
+
         guardar_economia(datos)
 
         embed = discord.Embed(
             description=(
-                f"👑 **{ctx.author.display_name}** le otorgó **{cantidad}** 🪙 a **{objetivo.display_name}**.\n"
+                f"👑 **{ctx.author.display_name}** {verbo} **{valor}** 🪙 a **{objetivo.display_name}**.\n"
                 f"Nuevo saldo: **{usuario['monedas']}** 🪙"
             ),
             color=discord.Color.gold()
