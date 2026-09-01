@@ -486,7 +486,9 @@ class Economia(commands.Cog):
 
         datos = cargar_economia()
         # Ordenamos a los usuarios por monedas, de mayor a menor
-        top = sorted(datos.items(), key=lambda x: x[1]["monedas"], reverse=True)[:10]
+        # Solo entran al ranking los que tienen más de 0 monedas
+        con_saldo = [item for item in datos.items() if item[1]["monedas"] > 0]
+        top = sorted(con_saldo, key=lambda x: x[1]["monedas"], reverse=True)[:10]
 
         embed = discord.Embed(
             title="🏆 Top 10 Millonarios de MichiBot",
